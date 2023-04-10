@@ -35,7 +35,7 @@ class PhotoViewCore extends StatefulWidget {
     required this.gestureDetectorBehavior,
     required this.controller,
     required this.scaleBoundaries,
-    required this.scaleStateCycle,
+    this.scaleStateCycle,
     required this.scaleStateController,
     required this.basePosition,
     required this.tightMode,
@@ -57,7 +57,7 @@ class PhotoViewCore extends StatefulWidget {
     this.gestureDetectorBehavior,
     required this.controller,
     required this.scaleBoundaries,
-    required this.scaleStateCycle,
+    this.scaleStateCycle,
     required this.scaleStateController,
     required this.basePosition,
     required this.tightMode,
@@ -80,7 +80,7 @@ class PhotoViewCore extends StatefulWidget {
   final PhotoViewControllerBase controller;
   final PhotoViewScaleStateController scaleStateController;
   final ScaleBoundaries scaleBoundaries;
-  final ScaleStateCycle scaleStateCycle;
+  final ScaleStateCycle? scaleStateCycle;
   final Alignment basePosition;
 
   final PhotoViewImageTapUpCallback? onTapUp;
@@ -124,6 +124,8 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   PhotoViewHeroAttributes? get heroAttributes => widget.heroAttributes;
 
   late ScaleBoundaries cachedScaleBoundaries = widget.scaleBoundaries;
+
+  Offset? doubleTapLocation;
 
   void handleScaleAnimation() {
     scale = _scaleAnimation!.value;
@@ -346,7 +348,12 @@ class PhotoViewCoreState extends State<PhotoViewCore>
 
             return PhotoViewGestureDetector(
               child: child,
-              onDoubleTap: nextScaleState,
+              onDoubleTapDown:
+                  widget.scaleStateCycle != null ? recordPointerPosition : null,
+              onDoubleTap:
+                  widget.scaleStateCycle != null ? nextScaleState : null,
+              onDoubleTapCancel:
+                  widget.scaleStateCycle != null ? clearPointerPosition : null,
               onScaleStart: onScaleStart,
               onScaleUpdate: onScaleUpdate,
               onScaleEnd: onScaleEnd,
@@ -388,6 +395,58 @@ class PhotoViewCoreState extends State<PhotoViewCore>
             width: scaleBoundaries.childSize.width * scale,
             fit: BoxFit.contain,
           );
+  }
+
+  @override
+  void nextScaleState() {
+    final PhotoViewScaleState scaleState = scaleStateController.scaleState;
+    if (scaleState == PhotoViewScaleState.zoomedIn ||
+        scaleState == PhotoViewScaleState.zoomedOut) {
+      scaleStateController.scaleState = scaleStateCycle!(scaleState);
+      return;
+    }
+    final double originalScale = getScaleForScaleState(
+      scaleState,
+      scaleBoundaries,
+    );
+
+    double prevScale = originalScale;
+    PhotoViewScaleState prevScaleState = scaleState;
+    double nextScale = originalScale;
+    PhotoViewScaleState nextScaleState = scaleState;
+
+    do {
+      prevScale = nextScale;
+      prevScaleState = nextScaleState;
+      nextScaleState = scaleStateCycle!(prevScaleState);
+      nextScale = getScaleForScaleState(nextScaleState, scaleBoundaries);
+    } while (prevScale == nextScale && scaleState != nextScaleState);
+
+    if (originalScale == nextScale) {
+      return;
+    }
+
+    scaleStateController.setInvisibly(nextScaleState);
+    animatePosition(
+        Offset.zero, localPosition2Offset(doubleTapLocation, prevScale));
+    animateScale(prevScale, nextScale);
+  }
+
+  void recordPointerPosition(TapDownDetails details) {
+    doubleTapLocation = details.localPosition;
+  }
+
+  void clearPointerPosition() {
+    doubleTapLocation = null;
+  }
+
+  Offset localPosition2Offset(Offset? position, double scale) {
+    final double screenWidth = scaleBoundaries.outerSize.width;
+    final double screenHeight = scaleBoundaries.outerSize.height;
+
+    final Offset _position =
+        position ?? Offset(screenWidth / 2, screenWidth / 2);
+    return -_position * scale + Offset(screenWidth / 2, screenHeight / 2);
   }
 }
 

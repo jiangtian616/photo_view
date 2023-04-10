@@ -13,6 +13,7 @@ import 'package:photo_view/photo_view.dart'
 
 import 'package:photo_view/src/controller/photo_view_controller.dart';
 import 'package:photo_view/src/controller/photo_view_scalestate_controller.dart';
+import 'package:photo_view/src/core/cached_page_view.dart';
 import 'package:photo_view/src/core/photo_view_gesture_detector.dart';
 import 'package:photo_view/src/photo_view_scale_state.dart';
 import 'package:photo_view/src/utils/photo_view_hero_attributes.dart';
@@ -104,6 +105,7 @@ class PhotoViewGallery extends StatefulWidget {
   const PhotoViewGallery({
     Key? key,
     required this.pageOptions,
+    this.cacheExtent,
     this.loadingBuilder,
     this.backgroundDecoration,
     this.wantKeepAlive = false,
@@ -128,6 +130,7 @@ class PhotoViewGallery extends StatefulWidget {
     Key? key,
     required this.itemCount,
     required this.builder,
+    this.cacheExtent,
     this.loadingBuilder,
     this.backgroundDecoration,
     this.wantKeepAlive = false,
@@ -145,6 +148,9 @@ class PhotoViewGallery extends StatefulWidget {
         assert(itemCount != null),
         assert(builder != null),
         super(key: key);
+
+  /// Mirror to [CachedPageView.cacheExtent]
+  final double? cacheExtent;
 
   /// A list of options to describe the items in the gallery
   final List<PhotoViewGalleryPageOptions>? pageOptions;
@@ -228,7 +234,8 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
     // Enable corner hit test
     return PhotoViewGestureDetectorScope(
       axis: widget.scrollDirection,
-      child: PageView.builder(
+      child: CachedPageView.builder(
+        cacheExtent: widget.cacheExtent ?? 0.0,
         reverse: widget.reverse,
         controller: _controller,
         onPageChanged: widget.onPageChanged,

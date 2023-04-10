@@ -10,14 +10,19 @@ class PhotoViewGestureDetector extends StatelessWidget {
     this.onScaleStart,
     this.onScaleUpdate,
     this.onScaleEnd,
+    this.onDoubleTapDown,
     this.onDoubleTap,
+    this.onDoubleTapCancel,
     this.child,
     this.onTapUp,
     this.onTapDown,
     this.behavior,
   }) : super(key: key);
 
+  final GestureTapDownCallback? onDoubleTapDown;
   final GestureDoubleTapCallback? onDoubleTap;
+  final GestureTapCancelCallback? onDoubleTapCancel;
+
   final HitCornersDetector? hitDetector;
 
   final GestureScaleStartCallback? onScaleStart;
@@ -52,13 +57,17 @@ class PhotoViewGestureDetector extends StatelessWidget {
       );
     }
 
-    gestures[DoubleTapGestureRecognizer] =
-        GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
-      () => DoubleTapGestureRecognizer(debugOwner: this),
-      (DoubleTapGestureRecognizer instance) {
-        instance..onDoubleTap = onDoubleTap;
-      },
-    );
+    if (onDoubleTapDown != null || onDoubleTap != null || onDoubleTapCancel != null) {
+      gestures[DoubleTapGestureRecognizer] = GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
+        () => DoubleTapGestureRecognizer(debugOwner: this),
+        (DoubleTapGestureRecognizer instance) {
+          instance
+            ..onDoubleTapDown = onDoubleTapDown
+            ..onDoubleTap = onDoubleTap
+            ..onDoubleTapCancel = onDoubleTapCancel;
+        },
+      );
+    }
 
     gestures[PhotoViewGestureRecognizer] =
         GestureRecognizerFactoryWithHandlers<PhotoViewGestureRecognizer>(
