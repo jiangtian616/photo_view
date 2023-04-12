@@ -364,9 +364,6 @@ class PhotoViewCoreState extends State<PhotoViewCore>
               onTapDown: widget.onTapDown != null
                   ? (details) => widget.onTapDown!(context, details, value)
                   : null,
-              onTapDragZoomStart: (details)=> print(details),
-              onTapDragZoomUpdate: (details)=> print(details),
-              onTapDragZoomEnd: (details)=> print(details),
             );
           } else {
             return Container();
