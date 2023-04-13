@@ -3,13 +3,7 @@ library photo_view_gallery;
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart'
-    show
-        LoadingBuilder,
-        PhotoView,
-        PhotoViewImageTapDownCallback,
-        PhotoViewImageTapUpCallback,
-        PhotoViewImageScaleEndCallback,
-        ScaleStateCycle;
+    show LoadingBuilder, PhotoView, PhotoViewDoubleTapZoomEndCallback, PhotoViewImageScaleEndCallback, PhotoViewImageTapDownCallback, PhotoViewImageTapUpCallback, ScaleStateCycle;
 
 import 'package:photo_view/src/controller/photo_view_controller.dart';
 import 'package:photo_view/src/controller/photo_view_scalestate_controller.dart';
@@ -272,6 +266,8 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             onTapUp: pageOption.onTapUp,
             onTapDown: pageOption.onTapDown,
             onScaleEnd: pageOption.onScaleEnd,
+            enableDoubleTapZoom: pageOption.enableDoubleTapZoom,
+            onDoubleTapZoomEnd: pageOption.onDoubleTapZoomEnd,
             gestureDetectorBehavior: pageOption.gestureDetectorBehavior,
             tightMode: pageOption.tightMode,
             filterQuality: pageOption.filterQuality,
@@ -299,6 +295,8 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             onTapUp: pageOption.onTapUp,
             onTapDown: pageOption.onTapDown,
             onScaleEnd: pageOption.onScaleEnd,
+            enableDoubleTapZoom: pageOption.enableDoubleTapZoom,
+            onDoubleTapZoomEnd: pageOption.onDoubleTapZoomEnd,
             gestureDetectorBehavior: pageOption.gestureDetectorBehavior,
             tightMode: pageOption.tightMode,
             filterQuality: pageOption.filterQuality,
@@ -341,6 +339,8 @@ class PhotoViewGalleryPageOptions {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     this.gestureDetectorBehavior,
     this.tightMode,
     this.filterQuality,
@@ -365,6 +365,8 @@ class PhotoViewGalleryPageOptions {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     this.gestureDetectorBehavior,
     this.tightMode,
     this.filterQuality,
@@ -413,10 +415,15 @@ class PhotoViewGalleryPageOptions {
 
   /// Mirror to [PhotoView.onTapDown]
   final PhotoViewImageTapDownCallback? onTapDown;
-
+  
   /// Mirror to [PhotoView.onScaleEnd]
   final PhotoViewImageScaleEndCallback? onScaleEnd;
-
+  
+  final bool? enableDoubleTapZoom;
+  
+  /// Mirror to [PhotoView.onDoubleTapZoomEnd]
+  final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
+  
   /// Mirror to [PhotoView.gestureDetectorBehavior]
   final HitTestBehavior? gestureDetectorBehavior;
 

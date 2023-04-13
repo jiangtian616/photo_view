@@ -26,6 +26,8 @@ class ImageWrapper extends StatefulWidget {
     required this.onTapUp,
     required this.onTapDown,
     required this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     required this.outerSize,
     required this.gestureDetectorBehavior,
     required this.tightMode,
@@ -54,6 +56,8 @@ class ImageWrapper extends StatefulWidget {
   final PhotoViewImageTapUpCallback? onTapUp;
   final PhotoViewImageTapDownCallback? onTapDown;
   final PhotoViewImageScaleEndCallback? onScaleEnd;
+  final bool? enableDoubleTapZoom;
+  final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
   final Size outerSize;
   final HitTestBehavior? gestureDetectorBehavior;
   final bool? tightMode;
@@ -196,6 +200,8 @@ class _ImageWrapperState extends State<ImageWrapper> {
       onTapUp: widget.onTapUp,
       onTapDown: widget.onTapDown,
       onScaleEnd: widget.onScaleEnd,
+      enableDoubleTapZoom: widget.enableDoubleTapZoom,
+      onDoubleTapZoomEnd: widget.onDoubleTapZoomEnd,
       gestureDetectorBehavior: widget.gestureDetectorBehavior,
       tightMode: widget.tightMode ?? false,
       filterQuality: widget.filterQuality ?? FilterQuality.none,
@@ -245,6 +251,8 @@ class CustomChildWrapper extends StatelessWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     required this.outerSize,
     this.gestureDetectorBehavior,
     required this.tightMode,
@@ -272,6 +280,8 @@ class CustomChildWrapper extends StatelessWidget {
   final PhotoViewImageTapUpCallback? onTapUp;
   final PhotoViewImageTapDownCallback? onTapDown;
   final PhotoViewImageScaleEndCallback? onScaleEnd;
+  final bool? enableDoubleTapZoom;
+  final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
   final Size outerSize;
   final HitTestBehavior? gestureDetectorBehavior;
   final bool? tightMode;
@@ -302,6 +312,8 @@ class CustomChildWrapper extends StatelessWidget {
       onTapUp: onTapUp,
       onTapDown: onTapDown,
       onScaleEnd: onScaleEnd,
+      enableDoubleTapZoom: enableDoubleTapZoom,
+      onDoubleTapZoomEnd: onDoubleTapZoomEnd,
       gestureDetectorBehavior: gestureDetectorBehavior,
       tightMode: tightMode ?? false,
       filterQuality: filterQuality ?? FilterQuality.none,

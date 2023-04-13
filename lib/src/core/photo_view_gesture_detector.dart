@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
@@ -16,6 +18,9 @@ class PhotoViewGestureDetector extends StatelessWidget {
     this.child,
     this.onTapUp,
     this.onTapDown,
+    this.onZoomStart,
+    this.onZoomUpdate,
+    this.onZoomEnd,
     this.behavior,
   }) : super(key: key);
 
@@ -29,6 +34,10 @@ class PhotoViewGestureDetector extends StatelessWidget {
   final GestureScaleUpdateCallback? onScaleUpdate;
   final GestureScaleEndCallback? onScaleEnd;
 
+  final GestureDoubleTapZoomStartCallback? onZoomStart;
+  final GestureDoubleTapZoomUpdateCallback? onZoomUpdate;
+  final GestureDoubleTapZoomEndCallback? onZoomEnd;
+  
   final GestureTapUpCallback? onTapUp;
   final GestureTapDownCallback? onTapDown;
 
@@ -57,14 +66,22 @@ class PhotoViewGestureDetector extends StatelessWidget {
       );
     }
 
-    if (onDoubleTapDown != null || onDoubleTap != null || onDoubleTapCancel != null) {
-      gestures[DoubleTapGestureRecognizer] = GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(
-        () => DoubleTapGestureRecognizer(debugOwner: this),
-        (DoubleTapGestureRecognizer instance) {
+    if (onDoubleTapDown != null ||
+        onDoubleTap != null ||
+        onDoubleTapCancel != null ||
+        onZoomStart != null ||
+        onZoomUpdate != null ||
+        onZoomEnd != null) {
+      gestures[DoubleTapZoomGestureRecognizer] = GestureRecognizerFactoryWithHandlers<DoubleTapZoomGestureRecognizer>(
+        () => DoubleTapZoomGestureRecognizer(debugOwner: this),
+        (DoubleTapZoomGestureRecognizer instance) {
           instance
-            ..onDoubleTapDown = onDoubleTapDown
             ..onDoubleTap = onDoubleTap
-            ..onDoubleTapCancel = onDoubleTapCancel;
+            ..onDoubleTapDown = onDoubleTapDown
+            ..onDoubleTapCancel = onDoubleTapCancel
+            ..onZoomStart = onZoomStart
+            ..onZoomUpdate = onZoomUpdate
+            ..onZoomEnd = onZoomEnd;
         },
       );
     }
@@ -164,6 +181,339 @@ class PhotoViewGestureRecognizer extends ScaleGestureRecognizer {
     if (shouldMove || _pointerLocations.keys.length > 1) {
       acceptGesture(event.pointer);
     }
+  }
+}
+
+typedef GestureDoubleTapZoomStartCallback = void Function(DoubleTapZoomStartDetails details);
+typedef GestureDoubleTapZoomUpdateCallback = void Function(DoubleTapZoomUpdateDetails details);
+typedef GestureDoubleTapZoomEndCallback = void Function();
+
+class DoubleTapZoomStartDetails {
+  DoubleTapZoomStartDetails({this.focalPoint = Offset.zero, Offset? localPoint}) : localPoint = localPoint ?? focalPoint;
+
+  final Offset focalPoint;
+  final Offset localPoint;
+
+  @override
+  String toString() {
+    return 'TapDragZoomStartDetails{focalPoint: $focalPoint, localPoint: $localPoint}';
+  }
+}
+
+class DoubleTapZoomUpdateDetails {
+  DoubleTapZoomUpdateDetails({this.focalPoint = Offset.zero, Offset? localPoint, this.pointDelta = Offset.zero})
+      : localPoint = localPoint ?? focalPoint;
+
+  final Offset focalPoint;
+  final Offset localPoint;
+  final Offset pointDelta;
+
+  @override
+  String toString() {
+    return 'TapDragZoomUpdateDetails{focalPoint: $focalPoint, localPoint: $localPoint, pointDelta: $pointDelta}';
+  }
+}
+
+class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
+  DoubleTapZoomGestureRecognizer(
+      {super.debugOwner, super.supportedDevices, this.onZoomStart, this.onZoomUpdate, this.onZoomEnd,});
+
+  GestureDoubleTapZoomStartCallback? onZoomStart;
+  GestureDoubleTapZoomUpdateCallback? onZoomUpdate;
+  GestureDoubleTapZoomEndCallback? onZoomEnd;
+
+  Timer? _doubleTapTimer;
+  _TapTracker? _firstTap;
+  final Map<int, _TapTracker> _trackers = <int, _TapTracker>{};
+
+  bool _isZooming = false;
+  PointerMoveEvent? lastZoomingEvent;
+  
+  @override
+  bool isPointerAllowed(PointerDownEvent event) {
+    if (onZoomUpdate == null && onZoomUpdate == null && onZoomEnd == null) {
+      return super.isPointerAllowed(event);
+    }
+    return true;
+  }
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    // Ignore new down event if we are zooming
+    if (_isZooming) {
+      return;
+    }
+
+    if (_firstTap != null) {
+      if (!_firstTap!.isWithinGlobalTolerance(event, kDoubleTapSlop)) {
+        // Ignore out-of-bounds second taps.
+        return;
+      } else if (!_firstTap!.hasElapsedMinTime() || !_firstTap!.hasSameButton(event)) {
+        // Restart when the second tap is too close to the first (touch screens
+        // often detect touches intermittently), or when buttons mismatch.
+        _reset();
+        return _trackTap(event);
+      } else {
+        _checkDown(event);
+        _checkZoomStart();
+      }
+    }
+    _trackTap(event);
+  }
+
+  void _trackTap(PointerDownEvent event) {
+    _stopDoubleTapTimer();
+    final _TapTracker tracker = _TapTracker(
+      event: event,
+      entry: GestureBinding.instance.gestureArena.add(event.pointer, this),
+      doubleTapMinTime: kDoubleTapMinTime,
+      gestureSettings: gestureSettings,
+    );
+    _trackers[event.pointer] = tracker;
+    tracker.startTrackingPointer(_handleEvent, event.transform);
+  }
+
+  void _handleEvent(PointerEvent event) {
+    final _TapTracker tracker = _trackers[event.pointer]!;
+    if (event is PointerUpEvent) {
+      if (_firstTap == null) {
+        _registerFirstTap(tracker);
+      } else if (!_isZooming) {
+        _registerSecondTap(tracker);
+      } else {
+        _endZooming(tracker);
+      }
+    } else if (event is PointerMoveEvent) {
+      if (_firstTap == null) {
+        if (!tracker.isWithinGlobalTolerance(event, kDoubleTapTouchSlop)) {
+          _reject(tracker);
+        }
+      } else if (!_isZooming) {
+        _beginZooming(tracker, event);
+      } else {
+        _updateZooming(event);
+      }
+    } else if (event is PointerCancelEvent) {
+      _reject(tracker);
+    }
+  }
+
+  void _reject(_TapTracker tracker) {
+    _trackers.remove(tracker.pointer);
+    tracker.entry.resolve(GestureDisposition.rejected);
+    _freezeTracker(tracker);
+    if (_firstTap != null) {
+      if (tracker == _firstTap) {
+        _reset();
+      } else {
+        _checkCancel();
+        if (_trackers.isEmpty) {
+          _reset();
+        }
+      }
+    }
+  }
+
+  void _reset() {
+    _stopDoubleTapTimer();
+    if (_firstTap != null) {
+      if (_trackers.isNotEmpty) {
+        _checkCancel();
+      }
+      // Note, order is important below in order for the resolve -> reject logic
+      // to work properly.
+      final _TapTracker tracker = _firstTap!;
+      _firstTap = null;
+      _reject(tracker);
+      GestureBinding.instance.gestureArena.release(tracker.pointer);
+    }
+    _clearTrackers();
+    _isZooming = false;
+    lastZoomingEvent = null;
+  }
+
+  void _registerFirstTap(_TapTracker tracker) {
+    _startDoubleTapTimer();
+    GestureBinding.instance.gestureArena.hold(tracker.pointer);
+    // Note, order is important below in order for the clear -> reject logic to
+    // work properly.
+    _freezeTracker(tracker);
+    _trackers.remove(tracker.pointer);
+    _clearTrackers();
+    _firstTap = tracker;
+  }
+
+  void _registerSecondTap(_TapTracker tracker) {
+    _firstTap!.entry.resolve(GestureDisposition.accepted);
+    tracker.entry.resolve(GestureDisposition.accepted);
+    _freezeTracker(tracker);
+    _trackers.remove(tracker.pointer);
+    _checkUp(tracker.initialButtons);
+    _reset();
+  }
+
+  void _beginZooming(_TapTracker tracker, PointerMoveEvent pointerMoveEvent) {
+    _firstTap!.entry.resolve(GestureDisposition.accepted);
+    tracker.entry.resolve(GestureDisposition.accepted);
+    _trackers.values.toList().where((t) => t != tracker).forEach(_reject);
+    _checkCancel();
+    _isZooming = true;
+    _checkZoomUpdate(pointerMoveEvent);
+  }
+
+  void _updateZooming(PointerMoveEvent pointerMoveEvent) {
+    _checkZoomUpdate(pointerMoveEvent);
+  }
+
+  void _endZooming(_TapTracker tracker) {
+    _freezeTracker(tracker);
+    _trackers.remove(tracker.pointer);
+    _checkZoomEnd();
+    _reset();
+  }
+
+  void _clearTrackers() {
+    _trackers.values.toList().forEach(_reject);
+    assert(_trackers.isEmpty);
+  }
+
+  void _freezeTracker(_TapTracker tracker) {
+    tracker.stopTrackingPointer(_handleEvent);
+  }
+
+  void _startDoubleTapTimer() {
+    _doubleTapTimer ??= Timer(const Duration(milliseconds: 200), _reset);
+  }
+
+  void _stopDoubleTapTimer() {
+    if (_doubleTapTimer != null) {
+      _doubleTapTimer!.cancel();
+      _doubleTapTimer = null;
+    }
+  }
+
+  void _checkDown(PointerDownEvent pointerDownEvent) {
+    if (onDoubleTapDown != null) {
+      final TapDownDetails details = TapDownDetails(
+        globalPosition: pointerDownEvent.position,
+        localPosition: pointerDownEvent.localPosition,
+        kind: getKindForPointer(pointerDownEvent.pointer),
+      );
+      invokeCallback<void>('onDoubleTapDown', () => onDoubleTapDown!(details));
+    }
+  }
+
+  void _checkUp(int buttons) {
+    assert(buttons == kPrimaryButton);
+    if (onDoubleTap != null) {
+      invokeCallback<void>('onDoubleTap', onDoubleTap!);
+    }
+  }
+
+  void _checkCancel() {
+    if (onDoubleTapCancel != null) {
+      invokeCallback<void>('onDoubleTapCancel', onDoubleTapCancel!);
+    }
+  }
+
+  void _checkZoomStart() {
+    if (onZoomStart != null) {
+      final DoubleTapZoomStartDetails details = DoubleTapZoomStartDetails(
+        focalPoint: _firstTap!._initialGlobalPosition,
+        localPoint: _firstTap!._initialLocalPosition,
+      );
+      invokeCallback<void>('onZoomStart', () => onZoomStart!(details));
+    }
+  }
+
+  void _checkZoomUpdate(PointerMoveEvent pointerMoveEvent) {
+    if (onZoomUpdate != null) {
+      final DoubleTapZoomUpdateDetails details = DoubleTapZoomUpdateDetails(
+        focalPoint: pointerMoveEvent.position,
+        localPoint: pointerMoveEvent.localPosition,
+        pointDelta:
+            lastZoomingEvent == null ? Offset.zero : pointerMoveEvent.localPosition - lastZoomingEvent!.localPosition,
+      );
+
+      invokeCallback<void>('onZoomUpdate', () => onZoomUpdate!(details));
+    }
+    lastZoomingEvent = pointerMoveEvent;
+  }
+
+  void _checkZoomEnd() {
+    if (onZoomEnd != null) {
+      invokeCallback<void>('onZoomEnd', onZoomEnd!);
+    }
+  }
+
+  @override
+  String get debugDescription => 'double tap zoom';
+}
+
+class _TapTracker {
+  _TapTracker({
+    required PointerDownEvent event,
+    required this.entry,
+    required Duration doubleTapMinTime,
+    required this.gestureSettings,
+  })  : assert(doubleTapMinTime != null),
+        assert(event != null),
+        assert(event.buttons != null),
+        pointer = event.pointer,
+        _initialGlobalPosition = event.position,
+        _initialLocalPosition = event.localPosition,
+        initialButtons = event.buttons,
+        _doubleTapMinTimeCountdown = _CountdownZoned(duration: doubleTapMinTime);
+
+  final DeviceGestureSettings? gestureSettings;
+  final int pointer;
+  final GestureArenaEntry entry;
+  final Offset _initialGlobalPosition;
+  final Offset _initialLocalPosition;
+  final int initialButtons;
+  final _CountdownZoned _doubleTapMinTimeCountdown;
+
+  bool _isTrackingPointer = false;
+
+  void startTrackingPointer(PointerRoute route, Matrix4? transform) {
+    if (!_isTrackingPointer) {
+      _isTrackingPointer = true;
+      GestureBinding.instance.pointerRouter.addRoute(pointer, route, transform);
+    }
+  }
+
+  void stopTrackingPointer(PointerRoute route) {
+    if (_isTrackingPointer) {
+      _isTrackingPointer = false;
+      GestureBinding.instance.pointerRouter.removeRoute(pointer, route);
+    }
+  }
+
+  bool isWithinGlobalTolerance(PointerEvent event, double tolerance) {
+    final Offset offset = event.position - _initialGlobalPosition;
+    return offset.distance <= tolerance;
+  }
+
+  bool hasElapsedMinTime() {
+    return _doubleTapMinTimeCountdown.timeout;
+  }
+
+  bool hasSameButton(PointerDownEvent event) {
+    return event.buttons == initialButtons;
+  }
+}
+
+class _CountdownZoned {
+  _CountdownZoned({required Duration duration}) : assert(duration != null) {
+    Timer(duration, _onTimeout);
+  }
+
+  bool _timeout = false;
+
+  bool get timeout => _timeout;
+
+  void _onTimeout() {
+    _timeout = true;
   }
 }
 

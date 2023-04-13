@@ -1,11 +1,12 @@
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart'
     show
-        PhotoViewScaleState,
+        PhotoViewDoubleTapZoomEndCallback,
         PhotoViewHeroAttributes,
+        PhotoViewImageScaleEndCallback,
         PhotoViewImageTapDownCallback,
         PhotoViewImageTapUpCallback,
-        PhotoViewImageScaleEndCallback,
+        PhotoViewScaleState,
         ScaleStateCycle;
 import 'package:photo_view/src/controller/photo_view_controller.dart';
 import 'package:photo_view/src/controller/photo_view_controller_delegate.dart';
@@ -32,6 +33,8 @@ class PhotoViewCore extends StatefulWidget {
     required this.onTapUp,
     required this.onTapDown,
     required this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     required this.gestureDetectorBehavior,
     required this.controller,
     required this.scaleBoundaries,
@@ -54,6 +57,8 @@ class PhotoViewCore extends StatefulWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     this.gestureDetectorBehavior,
     required this.controller,
     required this.scaleBoundaries,
@@ -86,7 +91,8 @@ class PhotoViewCore extends StatefulWidget {
   final PhotoViewImageTapUpCallback? onTapUp;
   final PhotoViewImageTapDownCallback? onTapDown;
   final PhotoViewImageScaleEndCallback? onScaleEnd;
-
+  final bool? enableDoubleTapZoom;
+  final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
   final HitTestBehavior? gestureDetectorBehavior;
   final bool tightMode;
   final bool disableGestures;
@@ -103,10 +109,7 @@ class PhotoViewCore extends StatefulWidget {
 }
 
 class PhotoViewCoreState extends State<PhotoViewCore>
-    with
-        TickerProviderStateMixin,
-        PhotoViewControllerDelegate,
-        HitCornersDetector {
+    with TickerProviderStateMixin, PhotoViewControllerDelegate, HitCornersDetector {
   Offset? _normalizedPosition;
   double? _scaleBefore;
   double? _rotationBefore;
@@ -117,15 +120,15 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   late final AnimationController _positionAnimationController;
   Animation<Offset>? _positionAnimation;
 
-  late final AnimationController _rotationAnimationController =
-      AnimationController(vsync: this)..addListener(handleRotationAnimation);
+  late final AnimationController _rotationAnimationController = AnimationController(vsync: this)
+    ..addListener(handleRotationAnimation);
   Animation<double>? _rotationAnimation;
 
   PhotoViewHeroAttributes? get heroAttributes => widget.heroAttributes;
 
   late ScaleBoundaries cachedScaleBoundaries = widget.scaleBoundaries;
 
-  Offset? doubleTapLocation;
+  Offset? _doubleTapLocation;
 
   void handleScaleAnimation() {
     scale = _scaleAnimation!.value;
@@ -156,11 +159,8 @@ class PhotoViewCoreState extends State<PhotoViewCore>
 
     updateMultiple(
       scale: newScale,
-      position: widget.enablePanAlways
-          ? delta
-          : clampPosition(position: delta * details.scale),
-      rotation:
-          widget.enableRotation ? _rotationBefore! + details.rotation : null,
+      position: widget.enablePanAlways ? delta : clampPosition(position: delta * details.scale),
+      rotation: widget.enableRotation ? _rotationBefore! + details.rotation : null,
       rotationFocusPoint: widget.enableRotation ? details.focalPoint : null,
     );
   }
@@ -211,6 +211,66 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     }
   }
 
+  void onDoubleTapZoomStart(DoubleTapZoomStartDetails details) {
+    _rotationBefore = controller.rotation;
+    _scaleBefore = scale;
+    _normalizedPosition = details.localPoint;
+    _scaleAnimationController.stop();
+    _positionAnimationController.stop();
+    _rotationAnimationController.stop();
+  }
+
+  void onDoubleTapZoomUpdate(DoubleTapZoomUpdateDetails details) {
+    final Offset delta = details.localPoint - _normalizedPosition!;
+    double newScale = _scaleBefore! + delta.dy / scaleBoundaries.outerSize.height * 5;
+
+    if (newScale < scaleBoundaries.minScale) {
+      newScale = scaleBoundaries.minScale;
+    }
+
+    updateScaleStateFromNewScale(newScale);
+
+    if (controller.position == Offset.zero && _scaleBefore! == 1) {
+      animatePosition(Offset.zero, localPosition2Offset(details.localPoint, _scaleBefore!));
+    }
+    updateMultiple(scale: newScale);
+  }
+
+  void onDoubleTapZoomEnd() {
+    final double _scale = scale;
+    final Offset _position = controller.position;
+    final double maxScale = scaleBoundaries.maxScale;
+    final double minScale = scaleBoundaries.minScale;
+
+    widget.onDoubleTapZoomEnd?.call(context, controller.value);
+
+    //animate back to maxScale if gesture exceeded the maxScale specified
+    if (_scale > maxScale) {
+      final double scaleComebackRatio = maxScale / _scale;
+      animateScale(_scale, maxScale);
+      final Offset clampedPosition = clampPosition(
+        position: _position * scaleComebackRatio,
+        scale: maxScale,
+      );
+      animatePosition(_position, clampedPosition);
+      return;
+    }
+
+    //animate back to minScale if gesture fell smaller than the minScale specified
+    if (_scale < minScale) {
+      final double scaleComebackRatio = minScale / _scale;
+      animateScale(_scale, minScale);
+      animatePosition(
+        _position,
+        clampPosition(
+          position: _position * scaleComebackRatio,
+          scale: minScale,
+        ),
+      );
+      return;
+    }
+  }
+
   void onDoubleTap() {
     nextScaleState();
   }
@@ -226,16 +286,14 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   }
 
   void animatePosition(Offset from, Offset to) {
-    _positionAnimation = Tween<Offset>(begin: from, end: to)
-        .animate(_positionAnimationController);
+    _positionAnimation = Tween<Offset>(begin: from, end: to).animate(_positionAnimationController);
     _positionAnimationController
       ..value = 0.0
       ..fling(velocity: 0.4);
   }
 
   void animateRotation(double from, double to) {
-    _rotationAnimation = Tween<double>(begin: from, end: to)
-        .animate(_rotationAnimationController);
+    _rotationAnimation = Tween<double>(begin: from, end: to).animate(_rotationAnimationController);
     _rotationAnimationController
       ..value = 0.0
       ..fling(velocity: 0.4);
@@ -249,8 +307,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
 
   /// Check if scale is equal to initial after scale animation update
   void onAnimationStatusCompleted() {
-    if (scaleStateController.scaleState != PhotoViewScaleState.initial &&
-        scale == scaleBoundaries.initialScale) {
+    if (scaleStateController.scaleState != PhotoViewScaleState.initial && scale == scaleBoundaries.initialScale) {
       scaleStateController.setInvisibly(PhotoViewScaleState.initial);
     }
   }
@@ -266,8 +323,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     _scaleAnimationController = AnimationController(vsync: this)
       ..addListener(handleScaleAnimation)
       ..addStatusListener(onAnimationStatus);
-    _positionAnimationController = AnimationController(vsync: this)
-      ..addListener(handlePositionAnimate);
+    _positionAnimationController = AnimationController(vsync: this)..addListener(handlePositionAnimate);
   }
 
   void animateOnScaleStateUpdate(double prevScale, double nextScale) {
@@ -329,9 +385,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
             );
 
             final child = Container(
-              constraints: widget.tightMode
-                  ? BoxConstraints.tight(scaleBoundaries.childSize * scale)
-                  : null,
+              constraints: widget.tightMode ? BoxConstraints.tight(scaleBoundaries.childSize * scale) : null,
               child: Center(
                 child: Transform(
                   child: customChildLayout,
@@ -348,22 +402,18 @@ class PhotoViewCoreState extends State<PhotoViewCore>
 
             return PhotoViewGestureDetector(
               child: child,
-              onDoubleTapDown:
-                  widget.scaleStateCycle != null ? recordPointerPosition : null,
-              onDoubleTap:
-                  widget.scaleStateCycle != null ? nextScaleState : null,
-              onDoubleTapCancel:
-                  widget.scaleStateCycle != null ? clearPointerPosition : null,
+              onDoubleTapDown: widget.scaleStateCycle != null ? recordPointerPosition : null,
+              onDoubleTap: widget.scaleStateCycle != null ? nextScaleState : null,
+              onDoubleTapCancel: widget.scaleStateCycle != null ? clearPointerPosition : null,
               onScaleStart: onScaleStart,
               onScaleUpdate: onScaleUpdate,
               onScaleEnd: onScaleEnd,
+              onZoomStart: widget.enableDoubleTapZoom == true ? onDoubleTapZoomStart : null,
+              onZoomUpdate: widget.enableDoubleTapZoom == true ? onDoubleTapZoomUpdate : null,
+              onZoomEnd: widget.enableDoubleTapZoom == true ? onDoubleTapZoomEnd : null,
               hitDetector: this,
-              onTapUp: widget.onTapUp != null
-                  ? (details) => widget.onTapUp!(context, details, value)
-                  : null,
-              onTapDown: widget.onTapDown != null
-                  ? (details) => widget.onTapDown!(context, details, value)
-                  : null,
+              onTapUp: widget.onTapUp != null ? (details) => widget.onTapUp!(context, details, value) : null,
+              onTapDown: widget.onTapDown != null ? (details) => widget.onTapDown!(context, details, value) : null,
             );
           } else {
             return Container();
@@ -400,8 +450,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   @override
   void nextScaleState() {
     final PhotoViewScaleState scaleState = scaleStateController.scaleState;
-    if (scaleState == PhotoViewScaleState.zoomedIn ||
-        scaleState == PhotoViewScaleState.zoomedOut) {
+    if (scaleState == PhotoViewScaleState.zoomedIn || scaleState == PhotoViewScaleState.zoomedOut) {
       scaleStateController.scaleState = scaleStateCycle!(scaleState);
       return;
     }
@@ -427,25 +476,23 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     }
 
     scaleStateController.setInvisibly(nextScaleState);
-    animatePosition(
-        Offset.zero, localPosition2Offset(doubleTapLocation, prevScale));
+    animatePosition(Offset.zero, localPosition2Offset(_doubleTapLocation, prevScale));
     animateScale(prevScale, nextScale);
   }
 
   void recordPointerPosition(TapDownDetails details) {
-    doubleTapLocation = details.localPosition;
+    _doubleTapLocation = details.localPosition;
   }
 
   void clearPointerPosition() {
-    doubleTapLocation = null;
+    _doubleTapLocation = null;
   }
 
   Offset localPosition2Offset(Offset? position, double scale) {
     final double screenWidth = scaleBoundaries.outerSize.width;
     final double screenHeight = scaleBoundaries.outerSize.height;
 
-    final Offset _position =
-        position ?? Offset(screenWidth / 2, screenWidth / 2);
+    final Offset _position = position ?? Offset(screenWidth / 2, screenWidth / 2);
     return -_position * scale + Offset(screenWidth / 2, screenHeight / 2);
   }
 }
@@ -476,9 +523,7 @@ class _CenterWithOriginalSizeDelegate extends SingleChildLayoutDelegate {
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
-    return useImageScale
-        ? const BoxConstraints()
-        : BoxConstraints.tight(subjectSize);
+    return useImageScale ? const BoxConstraints() : BoxConstraints.tight(subjectSize);
   }
 
   @override
@@ -496,6 +541,5 @@ class _CenterWithOriginalSizeDelegate extends SingleChildLayoutDelegate {
           useImageScale == other.useImageScale;
 
   @override
-  int get hashCode =>
-      subjectSize.hashCode ^ basePosition.hashCode ^ useImageScale.hashCode;
+  int get hashCode => subjectSize.hashCode ^ basePosition.hashCode ^ useImageScale.hashCode;
 }

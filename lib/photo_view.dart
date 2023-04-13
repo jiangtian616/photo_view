@@ -255,6 +255,8 @@ class PhotoView extends StatefulWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     this.customSize,
     this.gestureDetectorBehavior,
     this.tightMode,
@@ -291,6 +293,8 @@ class PhotoView extends StatefulWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
+    this.enableDoubleTapZoom,
+    this.onDoubleTapZoomEnd,
     this.customSize,
     this.gestureDetectorBehavior,
     this.tightMode,
@@ -392,6 +396,10 @@ class PhotoView extends StatefulWidget {
   /// particular location.
   final PhotoViewImageScaleEndCallback? onScaleEnd;
 
+  final bool? enableDoubleTapZoom;
+
+  final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
+  
   /// [HitTestBehavior] to be passed to the internal gesture detector.
   final HitTestBehavior? gestureDetectorBehavior;
 
@@ -524,6 +532,8 @@ class _PhotoViewState extends State<PhotoView>
                 onTapUp: widget.onTapUp,
                 onTapDown: widget.onTapDown,
                 onScaleEnd: widget.onScaleEnd,
+                enableDoubleTapZoom: widget.enableDoubleTapZoom,
+                onDoubleTapZoomEnd: widget.onDoubleTapZoomEnd,
                 outerSize: computedOuterSize,
                 gestureDetectorBehavior: widget.gestureDetectorBehavior,
                 tightMode: widget.tightMode,
@@ -550,6 +560,8 @@ class _PhotoViewState extends State<PhotoView>
                 onTapUp: widget.onTapUp,
                 onTapDown: widget.onTapDown,
                 onScaleEnd: widget.onScaleEnd,
+                enableDoubleTapZoom: widget.enableDoubleTapZoom,
+                onDoubleTapZoomEnd: widget.onDoubleTapZoomEnd,
                 outerSize: computedOuterSize,
                 gestureDetectorBehavior: widget.gestureDetectorBehavior,
                 tightMode: widget.tightMode,
@@ -608,6 +620,11 @@ typedef PhotoViewImageTapDownCallback = Function(
 typedef PhotoViewImageScaleEndCallback = Function(
   BuildContext context,
   ScaleEndDetails details,
+  PhotoViewControllerValue controllerValue,
+);
+
+typedef PhotoViewDoubleTapZoomEndCallback = Function(
+  BuildContext context,
   PhotoViewControllerValue controllerValue,
 );
 
