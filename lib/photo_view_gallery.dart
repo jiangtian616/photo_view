@@ -122,7 +122,7 @@ class PhotoViewGallery extends StatefulWidget {
   /// The builder must return a [PhotoViewGalleryPageOptions].
   const PhotoViewGallery.builder({
     Key? key,
-    required this.itemCount,
+    this.itemCount,
     required this.builder,
     this.cacheExtent,
     this.loadingBuilder,
@@ -139,7 +139,6 @@ class PhotoViewGallery extends StatefulWidget {
     this.customSize,
     this.allowImplicitScrolling = false,
   })  : pageOptions = null,
-        assert(itemCount != null),
         assert(builder != null),
         super(key: key);
 
@@ -216,9 +215,9 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
     return _controller.hasClients ? _controller.page!.floor() : 0;
   }
 
-  int get itemCount {
+  int? get itemCount {
     if (widget._isBuilder) {
-      return widget.itemCount!;
+      return widget.itemCount;
     }
     return widget.pageOptions!.length;
   }
