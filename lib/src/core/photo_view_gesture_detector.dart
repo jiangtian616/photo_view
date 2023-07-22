@@ -34,10 +34,10 @@ class PhotoViewGestureDetector extends StatelessWidget {
   final GestureScaleUpdateCallback? onScaleUpdate;
   final GestureScaleEndCallback? onScaleEnd;
 
-  final GestureDoubleTapZoomStartCallback? onZoomStart;
-  final GestureDoubleTapZoomUpdateCallback? onZoomUpdate;
-  final GestureDoubleTapZoomEndCallback? onZoomEnd;
-  
+  final GestureTapDragZoomStartCallback? onZoomStart;
+  final GestureTapDragZoomUpdateCallback? onZoomUpdate;
+  final GestureTapDragZoomEndCallback? onZoomEnd;
+
   final GestureTapUpCallback? onTapUp;
   final GestureTapDownCallback? onTapDown;
 
@@ -51,12 +51,10 @@ class PhotoViewGestureDetector extends StatelessWidget {
 
     final Axis? axis = scope?.axis;
 
-    final Map<Type, GestureRecognizerFactory> gestures =
-        <Type, GestureRecognizerFactory>{};
+    final Map<Type, GestureRecognizerFactory> gestures = <Type, GestureRecognizerFactory>{};
 
     if (onTapDown != null || onTapUp != null) {
-      gestures[TapGestureRecognizer] =
-          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+      gestures[TapGestureRecognizer] = GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
         () => TapGestureRecognizer(debugOwner: this),
         (TapGestureRecognizer instance) {
           instance
@@ -72,12 +70,12 @@ class PhotoViewGestureDetector extends StatelessWidget {
         onZoomStart != null ||
         onZoomUpdate != null ||
         onZoomEnd != null) {
-      gestures[DoubleTapZoomGestureRecognizer] = GestureRecognizerFactoryWithHandlers<DoubleTapZoomGestureRecognizer>(
-        () => DoubleTapZoomGestureRecognizer(debugOwner: this),
-        (DoubleTapZoomGestureRecognizer instance) {
+      gestures[DoubleTapAndTagDragZoomGestureRecognizer] = GestureRecognizerFactoryWithHandlers<DoubleTapAndTagDragZoomGestureRecognizer>(
+        () => DoubleTapAndTagDragZoomGestureRecognizer(debugOwner: this),
+        (DoubleTapAndTagDragZoomGestureRecognizer instance) {
           instance
-            ..onDoubleTap = onDoubleTap
             ..onDoubleTapDown = onDoubleTapDown
+            ..onDoubleTap = onDoubleTap
             ..onDoubleTapCancel = onDoubleTapCancel
             ..onZoomStart = onZoomStart
             ..onZoomUpdate = onZoomUpdate
@@ -86,10 +84,8 @@ class PhotoViewGestureDetector extends StatelessWidget {
       );
     }
 
-    gestures[PhotoViewGestureRecognizer] =
-        GestureRecognizerFactoryWithHandlers<PhotoViewGestureRecognizer>(
-      () => PhotoViewGestureRecognizer(
-          hitDetector: hitDetector, debugOwner: this, validateAxis: axis),
+    gestures[PhotoViewGestureRecognizer] = GestureRecognizerFactoryWithHandlers<PhotoViewGestureRecognizer>(
+      () => PhotoViewGestureRecognizer(hitDetector: hitDetector, debugOwner: this, validateAxis: axis),
       (PhotoViewGestureRecognizer instance) {
         instance
           ..dragStartBehavior = DragStartBehavior.start
@@ -166,10 +162,8 @@ class PhotoViewGestureRecognizer extends ScaleGestureRecognizer {
   void _updateDistances() {
     final int count = _pointerLocations.keys.length;
     Offset focalPoint = Offset.zero;
-    for (int pointer in _pointerLocations.keys)
-      focalPoint += _pointerLocations[pointer]!;
-    _currentFocalPoint =
-        count > 0 ? focalPoint / count.toDouble() : Offset.zero;
+    for (int pointer in _pointerLocations.keys) focalPoint += _pointerLocations[pointer]!;
+    _currentFocalPoint = count > 0 ? focalPoint / count.toDouble() : Offset.zero;
   }
 
   void _decideIfWeAcceptEvent(PointerEvent event) {
@@ -184,12 +178,12 @@ class PhotoViewGestureRecognizer extends ScaleGestureRecognizer {
   }
 }
 
-typedef GestureDoubleTapZoomStartCallback = void Function(DoubleTapZoomStartDetails details);
-typedef GestureDoubleTapZoomUpdateCallback = void Function(DoubleTapZoomUpdateDetails details);
-typedef GestureDoubleTapZoomEndCallback = void Function();
+typedef GestureTapDragZoomStartCallback = void Function(TapDragZoomStartDetails details);
+typedef GestureTapDragZoomUpdateCallback = void Function(TapDragZoomUpdateDetails details);
+typedef GestureTapDragZoomEndCallback = void Function();
 
-class DoubleTapZoomStartDetails {
-  DoubleTapZoomStartDetails({this.focalPoint = Offset.zero, Offset? localPoint}) : localPoint = localPoint ?? focalPoint;
+class TapDragZoomStartDetails {
+  TapDragZoomStartDetails({this.focalPoint = Offset.zero, Offset? localPoint}) : localPoint = localPoint ?? focalPoint;
 
   final Offset focalPoint;
   final Offset localPoint;
@@ -200,8 +194,8 @@ class DoubleTapZoomStartDetails {
   }
 }
 
-class DoubleTapZoomUpdateDetails {
-  DoubleTapZoomUpdateDetails({this.focalPoint = Offset.zero, Offset? localPoint, this.pointDelta = Offset.zero})
+class TapDragZoomUpdateDetails {
+  TapDragZoomUpdateDetails({this.focalPoint = Offset.zero, Offset? localPoint, this.pointDelta = Offset.zero})
       : localPoint = localPoint ?? focalPoint;
 
   final Offset focalPoint;
@@ -214,13 +208,18 @@ class DoubleTapZoomUpdateDetails {
   }
 }
 
-class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
-  DoubleTapZoomGestureRecognizer(
-      {super.debugOwner, super.supportedDevices, this.onZoomStart, this.onZoomUpdate, this.onZoomEnd,});
+class DoubleTapAndTagDragZoomGestureRecognizer extends DoubleTapGestureRecognizer {
+  DoubleTapAndTagDragZoomGestureRecognizer({
+    super.debugOwner,
+    super.supportedDevices,
+    this.onZoomStart,
+    this.onZoomUpdate,
+    this.onZoomEnd,
+  });
 
-  GestureDoubleTapZoomStartCallback? onZoomStart;
-  GestureDoubleTapZoomUpdateCallback? onZoomUpdate;
-  GestureDoubleTapZoomEndCallback? onZoomEnd;
+  GestureTapDragZoomStartCallback? onZoomStart;
+  GestureTapDragZoomUpdateCallback? onZoomUpdate;
+  GestureTapDragZoomEndCallback? onZoomEnd;
 
   Timer? _doubleTapTimer;
   _TapTracker? _firstTap;
@@ -228,13 +227,25 @@ class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
 
   bool _isZooming = false;
   PointerMoveEvent? lastZoomingEvent;
-  
+
+  bool get enableDoubleTapZoom => onDoubleTapDown != null || onDoubleTap != null || onDoubleTapCancel != null;
+
+  bool get enableTapDragZoom => onZoomStart != null || onZoomUpdate != null || onZoomEnd != null;
+
   @override
   bool isPointerAllowed(PointerDownEvent event) {
-    if (onZoomUpdate == null && onZoomUpdate == null && onZoomEnd == null) {
-      return super.isPointerAllowed(event);
+    if (_firstTap == null) {
+      if (!enableDoubleTapZoom && !enableTapDragZoom) {
+        return false;
+      }
     }
-    return true;
+
+    // If second tap is not allowed, reset the state.
+    final bool isPointerAllowed = supportedDevices == null || supportedDevices!.contains(event.kind);
+    if (isPointerAllowed == false) {
+      _reset();
+    }
+    return isPointerAllowed;
   }
 
   @override
@@ -278,20 +289,26 @@ class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
     if (event is PointerUpEvent) {
       if (_firstTap == null) {
         _registerFirstTap(tracker);
-      } else if (!_isZooming) {
-        _registerSecondTap(tracker);
-      } else {
+      } else if (_isZooming) {
         _endZooming(tracker);
+      } else if (enableDoubleTapZoom) {
+        _registerSecondTap(tracker);
+      } else if (enableTapDragZoom) {
+        /// use this new event as first tap and release the older one
+        _reset();
+        _registerFirstTap(tracker);
       }
     } else if (event is PointerMoveEvent) {
       if (_firstTap == null) {
         if (!tracker.isWithinGlobalTolerance(event, kDoubleTapTouchSlop)) {
           _reject(tracker);
         }
-      } else if (!_isZooming) {
+      } else if (_isZooming) {
+        _updateZooming(event);
+      } else if (enableTapDragZoom) {
         _beginZooming(tracker, event);
       } else {
-        _updateZooming(event);
+        _reject(tracker);
       }
     } else if (event is PointerCancelEvent) {
       _reject(tracker);
@@ -418,7 +435,7 @@ class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
 
   void _checkZoomStart() {
     if (onZoomStart != null) {
-      final DoubleTapZoomStartDetails details = DoubleTapZoomStartDetails(
+      final TapDragZoomStartDetails details = TapDragZoomStartDetails(
         focalPoint: _firstTap!._initialGlobalPosition,
         localPoint: _firstTap!._initialLocalPosition,
       );
@@ -428,11 +445,10 @@ class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
 
   void _checkZoomUpdate(PointerMoveEvent pointerMoveEvent) {
     if (onZoomUpdate != null) {
-      final DoubleTapZoomUpdateDetails details = DoubleTapZoomUpdateDetails(
+      final TapDragZoomUpdateDetails details = TapDragZoomUpdateDetails(
         focalPoint: pointerMoveEvent.position,
         localPoint: pointerMoveEvent.localPosition,
-        pointDelta:
-            lastZoomingEvent == null ? Offset.zero : pointerMoveEvent.localPosition - lastZoomingEvent!.localPosition,
+        pointDelta: lastZoomingEvent == null ? Offset.zero : pointerMoveEvent.localPosition - lastZoomingEvent!.localPosition,
       );
 
       invokeCallback<void>('onZoomUpdate', () => onZoomUpdate!(details));
@@ -447,7 +463,7 @@ class DoubleTapZoomGestureRecognizer extends DoubleTapGestureRecognizer {
   }
 
   @override
-  String get debugDescription => 'double tap zoom';
+  String get debugDescription => 'double tap and tap drag zoom';
 }
 
 class _TapTracker {
@@ -541,8 +557,7 @@ class PhotoViewGestureDetectorScope extends InheritedWidget {
   }) : super(child: child);
 
   static PhotoViewGestureDetectorScope? of(BuildContext context) {
-    final PhotoViewGestureDetectorScope? scope = context
-        .dependOnInheritedWidgetOfExactType<PhotoViewGestureDetectorScope>();
+    final PhotoViewGestureDetectorScope? scope = context.dependOnInheritedWidgetOfExactType<PhotoViewGestureDetectorScope>();
     return scope;
   }
 

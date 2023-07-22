@@ -33,8 +33,8 @@ class PhotoViewCore extends StatefulWidget {
     required this.onTapUp,
     required this.onTapDown,
     required this.onScaleEnd,
-    this.enableDoubleTapZoom,
     this.onDoubleTapZoomEnd,
+    this.enableTapDragZoom,
     required this.gestureDetectorBehavior,
     required this.controller,
     required this.scaleBoundaries,
@@ -57,8 +57,8 @@ class PhotoViewCore extends StatefulWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
-    this.enableDoubleTapZoom,
     this.onDoubleTapZoomEnd,
+    this.enableTapDragZoom,
     this.gestureDetectorBehavior,
     required this.controller,
     required this.scaleBoundaries,
@@ -91,7 +91,7 @@ class PhotoViewCore extends StatefulWidget {
   final PhotoViewImageTapUpCallback? onTapUp;
   final PhotoViewImageTapDownCallback? onTapDown;
   final PhotoViewImageScaleEndCallback? onScaleEnd;
-  final bool? enableDoubleTapZoom;
+  final bool? enableTapDragZoom;
   final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
   final HitTestBehavior? gestureDetectorBehavior;
   final bool tightMode;
@@ -108,8 +108,7 @@ class PhotoViewCore extends StatefulWidget {
   bool get hasCustomChild => customChild != null;
 }
 
-class PhotoViewCoreState extends State<PhotoViewCore>
-    with TickerProviderStateMixin, PhotoViewControllerDelegate, HitCornersDetector {
+class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMixin, PhotoViewControllerDelegate, HitCornersDetector {
   Offset? _normalizedPosition;
   double? _scaleBefore;
   double? _rotationBefore;
@@ -120,8 +119,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
   late final AnimationController _positionAnimationController;
   Animation<Offset>? _positionAnimation;
 
-  late final AnimationController _rotationAnimationController = AnimationController(vsync: this)
-    ..addListener(handleRotationAnimation);
+  late final AnimationController _rotationAnimationController = AnimationController(vsync: this)..addListener(handleRotationAnimation);
   Animation<double>? _rotationAnimation;
 
   PhotoViewHeroAttributes? get heroAttributes => widget.heroAttributes;
@@ -211,7 +209,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     }
   }
 
-  void onDoubleTapZoomStart(DoubleTapZoomStartDetails details) {
+  void onZoomStart(TapDragZoomStartDetails details) {
     _rotationBefore = controller.rotation;
     _scaleBefore = scale;
     _normalizedPosition = details.localPoint;
@@ -220,7 +218,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     _rotationAnimationController.stop();
   }
 
-  void onDoubleTapZoomUpdate(DoubleTapZoomUpdateDetails details) {
+  void onZoomUpdate(TapDragZoomUpdateDetails details) {
     final Offset delta = details.localPoint - _normalizedPosition!;
     double newScale = _scaleBefore! + delta.dy / scaleBoundaries.outerSize.height * 5;
 
@@ -236,7 +234,7 @@ class PhotoViewCoreState extends State<PhotoViewCore>
     updateMultiple(scale: newScale);
   }
 
-  void onDoubleTapZoomEnd() {
+  void onZoomEnd() {
     final double _scale = scale;
     final Offset _position = controller.position;
     final double maxScale = scaleBoundaries.maxScale;
@@ -408,9 +406,9 @@ class PhotoViewCoreState extends State<PhotoViewCore>
               onScaleStart: onScaleStart,
               onScaleUpdate: onScaleUpdate,
               onScaleEnd: onScaleEnd,
-              onZoomStart: widget.enableDoubleTapZoom == true ? onDoubleTapZoomStart : null,
-              onZoomUpdate: widget.enableDoubleTapZoom == true ? onDoubleTapZoomUpdate : null,
-              onZoomEnd: widget.enableDoubleTapZoom == true ? onDoubleTapZoomEnd : null,
+              onZoomStart: widget.enableTapDragZoom == true ? onZoomStart : null,
+              onZoomUpdate: widget.enableTapDragZoom == true ? onZoomUpdate : null,
+              onZoomEnd: widget.enableTapDragZoom == true ? onZoomEnd : null,
               hitDetector: this,
               onTapUp: widget.onTapUp != null ? (details) => widget.onTapUp!(context, details, value) : null,
               onTapDown: widget.onTapDown != null ? (details) => widget.onTapDown!(context, details, value) : null,

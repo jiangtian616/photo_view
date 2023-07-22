@@ -12,8 +12,7 @@ import 'package:photo_view/src/utils/photo_view_hero_attributes.dart';
 
 export 'src/controller/photo_view_controller.dart';
 export 'src/controller/photo_view_scalestate_controller.dart';
-export 'src/core/photo_view_gesture_detector.dart'
-    show PhotoViewGestureDetectorScope;
+export 'src/core/photo_view_gesture_detector.dart' show PhotoViewGestureDetectorScope;
 export 'src/photo_view_computed_scale.dart';
 export 'src/photo_view_scale_state.dart';
 export 'src/utils/photo_view_hero_attributes.dart';
@@ -255,8 +254,8 @@ class PhotoView extends StatefulWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
-    this.enableDoubleTapZoom,
     this.onDoubleTapZoomEnd,
+    this.enableTapDragZoom,
     this.customSize,
     this.gestureDetectorBehavior,
     this.tightMode,
@@ -293,8 +292,8 @@ class PhotoView extends StatefulWidget {
     this.onTapUp,
     this.onTapDown,
     this.onScaleEnd,
-    this.enableDoubleTapZoom,
     this.onDoubleTapZoomEnd,
+    this.enableTapDragZoom,
     this.customSize,
     this.gestureDetectorBehavior,
     this.tightMode,
@@ -396,10 +395,10 @@ class PhotoView extends StatefulWidget {
   /// particular location.
   final PhotoViewImageScaleEndCallback? onScaleEnd;
 
-  final bool? enableDoubleTapZoom;
+  final bool? enableTapDragZoom;
 
   final PhotoViewDoubleTapZoomEndCallback? onDoubleTapZoomEnd;
-  
+
   /// [HitTestBehavior] to be passed to the internal gesture detector.
   final HitTestBehavior? gestureDetectorBehavior;
 
@@ -428,8 +427,7 @@ class PhotoView extends StatefulWidget {
   }
 }
 
-class _PhotoViewState extends State<PhotoView>
-    with AutomaticKeepAliveClientMixin {
+class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixin {
   // image retrieval
 
   // controller
@@ -511,8 +509,7 @@ class _PhotoViewState extends State<PhotoView>
         BoxConstraints constraints,
       ) {
         final computedOuterSize = widget.customSize ?? constraints.biggest;
-        final backgroundDecoration = widget.backgroundDecoration ??
-            const BoxDecoration(color: Colors.black);
+        final backgroundDecoration = widget.backgroundDecoration ?? const BoxDecoration(color: Colors.black);
 
         return widget._isCustomChild
             ? CustomChildWrapper(
@@ -532,8 +529,8 @@ class _PhotoViewState extends State<PhotoView>
                 onTapUp: widget.onTapUp,
                 onTapDown: widget.onTapDown,
                 onScaleEnd: widget.onScaleEnd,
-                enableDoubleTapZoom: widget.enableDoubleTapZoom,
                 onDoubleTapZoomEnd: widget.onDoubleTapZoomEnd,
+                enableTapDragZoom: widget.enableTapDragZoom,
                 outerSize: computedOuterSize,
                 gestureDetectorBehavior: widget.gestureDetectorBehavior,
                 tightMode: widget.tightMode,
@@ -560,8 +557,8 @@ class _PhotoViewState extends State<PhotoView>
                 onTapUp: widget.onTapUp,
                 onTapDown: widget.onTapDown,
                 onScaleEnd: widget.onScaleEnd,
-                enableDoubleTapZoom: widget.enableDoubleTapZoom,
                 onDoubleTapZoomEnd: widget.onDoubleTapZoomEnd,
+                enableTapDragZoom: widget.enableTapDragZoom,
                 outerSize: computedOuterSize,
                 gestureDetectorBehavior: widget.gestureDetectorBehavior,
                 tightMode: widget.tightMode,
