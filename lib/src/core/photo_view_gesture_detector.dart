@@ -71,7 +71,7 @@ class PhotoViewGestureDetector extends StatelessWidget {
         onZoomUpdate != null ||
         onZoomEnd != null) {
       gestures[DoubleTapAndTagDragZoomGestureRecognizer] = GestureRecognizerFactoryWithHandlers<DoubleTapAndTagDragZoomGestureRecognizer>(
-        () => DoubleTapAndTagDragZoomGestureRecognizer(debugOwner: this),
+        () => DoubleTapAndTagDragZoomGestureRecognizer(debugOwner: this, allowedButtonsFilter: (int button) => button == kPrimaryButton),
         (DoubleTapAndTagDragZoomGestureRecognizer instance) {
           instance
             ..onDoubleTapDown = onDoubleTapDown
@@ -208,10 +208,11 @@ class TapDragZoomUpdateDetails {
   }
 }
 
-class DoubleTapAndTagDragZoomGestureRecognizer extends DoubleTapGestureRecognizer {
+class DoubleTapAndTagDragZoomGestureRecognizer extends GestureRecognizer {
   DoubleTapAndTagDragZoomGestureRecognizer({
     super.debugOwner,
     super.supportedDevices,
+    super.allowedButtonsFilter,
     this.onZoomStart,
     this.onZoomUpdate,
     this.onZoomEnd,
@@ -220,6 +221,10 @@ class DoubleTapAndTagDragZoomGestureRecognizer extends DoubleTapGestureRecognize
   GestureTapDragZoomStartCallback? onZoomStart;
   GestureTapDragZoomUpdateCallback? onZoomUpdate;
   GestureTapDragZoomEndCallback? onZoomEnd;
+
+  GestureTapDownCallback? onDoubleTapDown;
+  GestureDoubleTapCallback? onDoubleTap;
+  GestureTapCancelCallback? onDoubleTapCancel;
 
   Timer? _doubleTapTimer;
   _TapTracker? _firstTap;
@@ -241,7 +246,7 @@ class DoubleTapAndTagDragZoomGestureRecognizer extends DoubleTapGestureRecognize
     }
 
     // If second tap is not allowed, reset the state.
-    final bool isPointerAllowed = supportedDevices == null || supportedDevices!.contains(event.kind);
+    final bool isPointerAllowed = super.isPointerAllowed(event);
     if (isPointerAllowed == false) {
       _reset();
     }
@@ -347,6 +352,22 @@ class DoubleTapAndTagDragZoomGestureRecognizer extends DoubleTapGestureRecognize
     _clearTrackers();
     _isZooming = false;
     lastZoomingEvent = null;
+  }
+
+  @override
+  void acceptGesture(int pointer) {}
+
+  @override
+  void rejectGesture(int pointer) {
+    _TapTracker? tracker = _trackers[pointer];
+    // If tracker isn't in the list, check if this is the first tap tracker
+    if (tracker == null && _firstTap != null && _firstTap!.pointer == pointer) {
+      tracker = _firstTap;
+    }
+    // If tracker is still null, we rejected ourselves already
+    if (tracker != null) {
+      _reject(tracker);
+    }
   }
 
   void _registerFirstTap(_TapTracker tracker) {
