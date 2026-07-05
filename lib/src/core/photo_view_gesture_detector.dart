@@ -322,10 +322,12 @@ class DoubleTapAndTagDragZoomGestureRecognizer extends GestureRecognizer {
         }
       } else if (_isZooming) {
         _updateZooming(event);
-      } else if (enableTapDragZoom) {
-        _beginZooming(tracker, event);
-      } else {
-        _reject(tracker);
+      } else if (event.position != tracker._initialGlobalPosition) {
+        if (enableTapDragZoom) {
+          _beginZooming(tracker, event);
+        } else {
+          _reject(tracker);
+        }
       }
     } else if (event is PointerCancelEvent) {
       _reject(tracker);
