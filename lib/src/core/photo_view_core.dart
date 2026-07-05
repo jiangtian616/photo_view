@@ -137,6 +137,8 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
 
   Offset? _doubleTapLocation;
 
+  bool _isCtrlPressed = false;
+
   void handleScaleAnimation() {
     scale = _scaleAnimation!.value;
   }
@@ -282,14 +284,22 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
     nextScaleState();
   }
 
-  void _onPointerSignal(PointerSignalEvent event) {
-    if (!widget.enableCtrlScrollZoom || event is! PointerScrollEvent) {
-      return;
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+        event.logicalKey == LogicalKeyboardKey.controlRight) {
+      final ctrlPressed = event is KeyDownEvent || event is KeyRepeatEvent;
+      if (_isCtrlPressed != ctrlPressed) {
+        _isCtrlPressed = ctrlPressed;
+        if (mounted) {
+          setState(() {});
+        }
+      }
     }
+    return false;
+  }
 
-    final ctrlPressed = HardwareKeyboard.instance.logicalKeysPressed
-        .any((key) => key == LogicalKeyboardKey.controlLeft || key == LogicalKeyboardKey.controlRight);
-    if (!ctrlPressed) {
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (!widget.enableCtrlScrollZoom || event is! PointerScrollEvent || !_isCtrlPressed) {
       return;
     }
 
@@ -365,6 +375,7 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
     super.initState();
     initDelegate();
     addAnimateOnScaleStateUpdate(animateOnScaleStateUpdate);
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
 
     cachedScaleBoundaries = widget.scaleBoundaries;
 
@@ -386,6 +397,7 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
     _scaleAnimationController.dispose();
     _positionAnimationController.dispose();
     _rotationAnimationController.dispose();
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     super.dispose();
   }
 
@@ -463,6 +475,7 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
               onTapUp: widget.onTapUp != null ? (details) => widget.onTapUp!(context, details, value) : null,
               onTapDown: widget.onTapDown != null ? (details) => widget.onTapDown!(context, details, value) : null,
               onPointerSignal: _onPointerSignal,
+              absorbChildPointerEvents: _isCtrlPressed && widget.enableCtrlScrollZoom,
             );
           } else {
             return Container();
