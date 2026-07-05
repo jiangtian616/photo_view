@@ -22,6 +22,7 @@ class PhotoViewGestureDetector extends StatelessWidget {
     this.onZoomUpdate,
     this.onZoomEnd,
     this.behavior,
+    this.onPointerSignal,
   }) : super(key: key);
 
   final GestureTapDownCallback? onDoubleTapDown;
@@ -40,6 +41,8 @@ class PhotoViewGestureDetector extends StatelessWidget {
 
   final GestureTapUpCallback? onTapUp;
   final GestureTapDownCallback? onTapDown;
+
+  final void Function(PointerSignalEvent)? onPointerSignal;
 
   final Widget? child;
 
@@ -95,10 +98,13 @@ class PhotoViewGestureDetector extends StatelessWidget {
       },
     );
 
-    return RawGestureDetector(
-      behavior: behavior,
-      child: child,
-      gestures: gestures,
+    return Listener(
+      onPointerSignal: onPointerSignal,
+      child: RawGestureDetector(
+        behavior: behavior,
+        child: child,
+        gestures: gestures,
+      ),
     );
   }
 }

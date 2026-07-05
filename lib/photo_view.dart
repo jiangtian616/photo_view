@@ -263,6 +263,8 @@ class PhotoView extends StatefulWidget {
     this.disableGestures,
     this.errorBuilder,
     this.enablePanAlways,
+    this.enableCtrlScrollZoom,
+    this.ctrlScrollZoomFactor,
   })  : child = null,
         childSize = null,
         super(key: key);
@@ -300,6 +302,8 @@ class PhotoView extends StatefulWidget {
     this.filterQuality,
     this.disableGestures,
     this.enablePanAlways,
+    this.enableCtrlScrollZoom,
+    this.ctrlScrollZoomFactor,
   })  : errorBuilder = null,
         imageProvider = null,
         semanticLabel = null,
@@ -416,6 +420,16 @@ class PhotoView extends StatefulWidget {
   /// Enable pan the widget even if it's smaller than the hole parent widget.
   /// Useful when you want to drag a widget without restrictions.
   final bool? enablePanAlways;
+
+  /// Enable zooming via Ctrl+scroll wheel on desktop platforms.
+  /// When enabled, holding Ctrl and scrolling the mouse wheel will zoom
+  /// in/out centered on the mouse pointer position.
+  final bool? enableCtrlScrollZoom;
+
+  /// The zoom factor for Ctrl+scroll wheel zooming.
+  /// Controls how much each scroll tick changes the scale.
+  /// Defaults to 0.05 if not specified.
+  final double? ctrlScrollZoomFactor;
 
   bool get _isCustomChild {
     return child != null;
@@ -537,6 +551,8 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
                 filterQuality: widget.filterQuality,
                 disableGestures: widget.disableGestures,
                 enablePanAlways: widget.enablePanAlways,
+                enableCtrlScrollZoom: widget.enableCtrlScrollZoom,
+                ctrlScrollZoomFactor: widget.ctrlScrollZoomFactor,
               )
             : ImageWrapper(
                 imageProvider: widget.imageProvider!,
@@ -566,6 +582,8 @@ class _PhotoViewState extends State<PhotoView> with AutomaticKeepAliveClientMixi
                 disableGestures: widget.disableGestures,
                 errorBuilder: widget.errorBuilder,
                 enablePanAlways: widget.enablePanAlways,
+                enableCtrlScrollZoom: widget.enableCtrlScrollZoom,
+                ctrlScrollZoomFactor: widget.ctrlScrollZoomFactor,
               );
       },
     );

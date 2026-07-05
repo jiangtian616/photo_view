@@ -119,11 +119,11 @@ class PhotoViewGallery extends StatefulWidget {
     this.scrollDirection = Axis.horizontal,
     this.customSize,
     this.allowImplicitScrolling = false,
+    this.enableCtrlScrollZoom,
+    this.ctrlScrollZoomFactor,
   })  : itemCount = null,
         builder = null,
         super(key: key);
-
-  /// Construct a gallery with dynamic items.
   ///
   /// The builder must return a [PhotoViewGalleryPageOptions].
   const PhotoViewGallery.builder({
@@ -144,6 +144,8 @@ class PhotoViewGallery extends StatefulWidget {
     this.scrollDirection = Axis.horizontal,
     this.customSize,
     this.allowImplicitScrolling = false,
+    this.enableCtrlScrollZoom,
+    this.ctrlScrollZoomFactor,
   })  : pageOptions = null,
         assert(builder != null),
         super(key: key);
@@ -198,6 +200,12 @@ class PhotoViewGallery extends StatefulWidget {
 
   /// When user attempts to move it to the next element, focus will traverse to the next page in the page view.
   final bool allowImplicitScrolling;
+
+  /// Enables Ctrl+scroll wheel zoom on desktop. Defaults to false.
+  final bool? enableCtrlScrollZoom;
+
+  /// The zoom sensitivity factor for Ctrl+scroll wheel zoom. Defaults to 0.05.
+  final double? ctrlScrollZoomFactor;
 
   bool get _isBuilder => builder != null;
 
@@ -277,6 +285,8 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             filterQuality: pageOption.filterQuality,
             basePosition: pageOption.basePosition,
             disableGestures: pageOption.disableGestures,
+            enableCtrlScrollZoom: widget.enableCtrlScrollZoom,
+            ctrlScrollZoomFactor: widget.ctrlScrollZoomFactor,
           )
         : PhotoView(
             key: ObjectKey(index),
@@ -307,6 +317,8 @@ class _PhotoViewGalleryState extends State<PhotoViewGallery> {
             basePosition: pageOption.basePosition,
             disableGestures: pageOption.disableGestures,
             errorBuilder: pageOption.errorBuilder,
+            enableCtrlScrollZoom: widget.enableCtrlScrollZoom,
+            ctrlScrollZoomFactor: widget.ctrlScrollZoomFactor,
           );
 
     return ClipRect(

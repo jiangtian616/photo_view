@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:photo_view/photo_view.dart'
     show
@@ -45,6 +47,8 @@ class PhotoViewCore extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.enablePanAlways,
+    this.enableCtrlScrollZoom = false,
+    this.ctrlScrollZoomFactor = 0.05,
   })  : customChild = null,
         super(key: key);
 
@@ -69,6 +73,8 @@ class PhotoViewCore extends StatefulWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.enablePanAlways,
+    this.enableCtrlScrollZoom = false,
+    this.ctrlScrollZoomFactor = 0.05,
   })  : imageProvider = null,
         semanticLabel = null,
         gaplessPlayback = false,
@@ -99,6 +105,9 @@ class PhotoViewCore extends StatefulWidget {
   final bool enablePanAlways;
 
   final FilterQuality filterQuality;
+
+  final bool enableCtrlScrollZoom;
+  final double ctrlScrollZoomFactor;
 
   @override
   State<StatefulWidget> createState() {
@@ -273,6 +282,47 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
     nextScaleState();
   }
 
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (!widget.enableCtrlScrollZoom || event is! PointerScrollEvent) {
+      return;
+    }
+
+    final ctrlPressed = HardwareKeyboard.instance.logicalKeysPressed
+        .any((key) => key == LogicalKeyboardKey.controlLeft || key == LogicalKeyboardKey.controlRight);
+    if (!ctrlPressed) {
+      return;
+    }
+
+    GestureBinding.instance.pointerSignalResolver.register(event, (PointerSignalEvent resolvedEvent) {
+      _handleCtrlScrollZoom(resolvedEvent as PointerScrollEvent);
+    });
+  }
+
+  void _handleCtrlScrollZoom(PointerScrollEvent event) {
+    final double currentScale = scale;
+    final double newScale = (currentScale - event.scrollDelta.dy * widget.ctrlScrollZoomFactor)
+        .clamp(scaleBoundaries.minScale, scaleBoundaries.maxScale);
+
+    updateScaleStateFromNewScale(newScale);
+
+    final Offset center = Offset(
+      scaleBoundaries.outerSize.width / 2,
+      scaleBoundaries.outerSize.height / 2,
+    );
+    final Offset relativeMousePos = event.localPosition - center;
+    final Offset newPosition = widget.enablePanAlways
+        ? controller.position + relativeMousePos * (1 - newScale / currentScale)
+        : clampPosition(
+            position: controller.position + relativeMousePos * (1 - newScale / currentScale),
+            scale: newScale,
+          );
+
+    _scaleAnimationController.stop();
+    _positionAnimationController.stop();
+    animateScale(currentScale, newScale);
+    animatePosition(controller.position, newPosition);
+  }
+
   void animateScale(double from, double to) {
     _scaleAnimation = Tween<double>(
       begin: from,
@@ -412,6 +462,7 @@ class PhotoViewCoreState extends State<PhotoViewCore> with TickerProviderStateMi
               hitDetector: this,
               onTapUp: widget.onTapUp != null ? (details) => widget.onTapUp!(context, details, value) : null,
               onTapDown: widget.onTapDown != null ? (details) => widget.onTapDown!(context, details, value) : null,
+              onPointerSignal: _onPointerSignal,
             );
           } else {
             return Container();

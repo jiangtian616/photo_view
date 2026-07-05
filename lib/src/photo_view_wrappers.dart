@@ -35,6 +35,8 @@ class ImageWrapper extends StatefulWidget {
     required this.disableGestures,
     required this.errorBuilder,
     required this.enablePanAlways,
+    this.enableCtrlScrollZoom,
+    this.ctrlScrollZoomFactor,
   }) : super(key: key);
 
   final ImageProvider imageProvider;
@@ -64,6 +66,8 @@ class ImageWrapper extends StatefulWidget {
   final FilterQuality? filterQuality;
   final bool? disableGestures;
   final bool? enablePanAlways;
+  final bool? enableCtrlScrollZoom;
+  final double? ctrlScrollZoomFactor;
 
   @override
   _ImageWrapperState createState() => _ImageWrapperState();
@@ -207,6 +211,8 @@ class _ImageWrapperState extends State<ImageWrapper> {
       filterQuality: widget.filterQuality ?? FilterQuality.none,
       disableGestures: widget.disableGestures ?? false,
       enablePanAlways: widget.enablePanAlways ?? false,
+      enableCtrlScrollZoom: widget.enableCtrlScrollZoom ?? false,
+      ctrlScrollZoomFactor: widget.ctrlScrollZoomFactor ?? 0.05,
     );
   }
 
@@ -259,6 +265,8 @@ class CustomChildWrapper extends StatelessWidget {
     required this.filterQuality,
     required this.disableGestures,
     required this.enablePanAlways,
+    this.enableCtrlScrollZoom,
+    this.ctrlScrollZoomFactor,
   }) : super(key: key);
 
   final Widget? child;
@@ -288,6 +296,8 @@ class CustomChildWrapper extends StatelessWidget {
   final FilterQuality? filterQuality;
   final bool? disableGestures;
   final bool? enablePanAlways;
+  final bool? enableCtrlScrollZoom;
+  final double? ctrlScrollZoomFactor;
 
   @override
   Widget build(BuildContext context) {
@@ -319,6 +329,8 @@ class CustomChildWrapper extends StatelessWidget {
       filterQuality: filterQuality ?? FilterQuality.none,
       disableGestures: disableGestures ?? false,
       enablePanAlways: enablePanAlways ?? false,
+      enableCtrlScrollZoom: enableCtrlScrollZoom ?? false,
+      ctrlScrollZoomFactor: ctrlScrollZoomFactor ?? 0.05,
     );
   }
 }
